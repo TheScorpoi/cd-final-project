@@ -74,7 +74,7 @@ def authenticate(
     tries, last_seen = monitored.get(request.client.host, (0, datetime.now()))
 
     if request.client.host in banned:
-        logger.debug("Your banned")
+        logger.debug("You're banned")
         if datetime.now() > banned[request.client.host] + timedelta(
             milliseconds=BANNED_TIME
         ):
