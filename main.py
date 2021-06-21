@@ -1,6 +1,7 @@
 """ Impenetrable Server."""
 import uvicorn
 import secrets
+import socket
 import string
 import time
 import logging
@@ -125,4 +126,5 @@ def read_current_user(password: str = Depends(authenticate)):
 
 
 if __name__ == "__main__":
+    logger.info("\t\t\t\tMy IP: %s", socket.gethostbyname(socket.gethostname()))	
     uvicorn.run(app, host="0.0.0.0", port=8000)
