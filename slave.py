@@ -3,16 +3,20 @@ import socket
 import json
 import base64
 import struct
-import const
+from server import const
 from string import ascii_letters, digits
 from itertools import product
 
 class Slave:
     def __init__(self):
         self.port = 8000
-        self.host = '127.0.0.1'
+        self.host = '127.0.1.1'
         self.slaves=[]
         self.n_slaves=1
+
+        self.MCAST_GRP = '224.1.1.1'
+        self.MCAST_PORT = 5007
+        self.MULTICAST_TTL = 2
 
     def connect(self):    
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -21,11 +25,11 @@ class Slave:
         
         """SOCKETS MULTICAST DE ENVIO"""
         
-        self.sock_multicast_send = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-        self.sock_multicast_send.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, self.MULTICAST_TTL)
+        self.sock_sendMulticast = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+        self.sock_sendMulticast.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, self.MULTICAST_TTL)
         msg_connect = json.dumps({"command":"register"}).encode('utf-8')
 
-        self.sock_multicast_send.sendto(msg_connect, (self.MCAST_GRP, self.MCAST_PORT))
+        self.sock_sendMulticast.sendto(msg_connect, (self.MCAST_GRP, self.MCAST_PORT))
 
 
     def send_msg(self, msg,conn):
@@ -48,19 +52,19 @@ class Slave:
         """create multicast sockets to receivedata"""
         
         #IS_ALL_GROUPS = True
-        self.sock_multicast_receive = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-        self.sock_multicast_receive.settimeout(0)                
-        self.sock_multicast_receive.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.sock_recvMulti = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+        self.sock_recvMulti.settimeout(0)                
+        self.sock_recvMulti.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         #if IS_ALL_GROUPS:
             # on this port, receives ALL multicast groups
-        self.sock_multicast_receive.bind(('', self.MCAST_PORT))
+        self.sock_recvMulti.bind(('', self.MCAST_PORT))
         #else:
             # on this port, listen ONLY to MCAST_GRP
-            #self.sock_multicast_receive.bind((self.MCAST_GRP, self.MCAST_PORT))
+            #self.sock_recvMulti.bind((self.MCAST_GRP, self.MCAST_PORT))
         
         mreq = struct.pack("4sl", socket.inet_aton(self.MCAST_GRP), socket.INADDR_ANY)
 
-        self.sock_multicast_receive.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+        self.sock_recvMulti.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
     
     
 
@@ -68,20 +72,21 @@ class Slave:
     def loop(self):
         self.rcv_from_slaves()
         time.sleep(5)
+        print(const.PASSWORD_SIZE)
         comb = self.combinations(const.PASSWORD_SIZE)
         i=0
         while True:
             """HTTP protocol and turn sockets on"""
             try:
-                json_string = self.sock_multicast_receive.recv(10240).decode('utf-8')
+                json_string = self.sock_recvMulti.recv(10240).decode('utf-8')
                 message = json.loads(json_string)
                 if message['command'] == 'register':
                     self.n_slaves+=1
                     print("Number slaves:" ,self.n_slaves)
                 elif message['command'] == 'found':
                     print(message)
-                    self.sock_multicast_receive.close()
-                    self.sock_multicast_send.close()
+                    self.sock_recvMulti.close()
+                    self.sock_sendMulticast.close()
                     self.sock.close()
                     break
             except socket.error:
@@ -96,7 +101,7 @@ class Slave:
             if "OK" in received:
                 msg_ok = {'command': 'found', 'password': comb[i]}
                 msg_ok_encode=json.dumps(msg_ok).encode('utf-8')
-                self.sock_multicast_send.sendto(msg_ok_encode, (self.MCAST_GRP, self.MCAST_PORT))
+                self.sock_sendMulticast.sendto(msg_ok_encode, (self.MCAST_GRP, self.MCAST_PORT))
                 print(msg_ok)
                 break
             elif (received[-1] == "\n"):
