@@ -1,4 +1,5 @@
 """ Impenetrable Server."""
+import socket
 import uvicorn
 import secrets
 import socket
@@ -74,7 +75,7 @@ def authenticate(
     tries, last_seen = monitored.get(request.client.host, (0, datetime.now()))
 
     if request.client.host in banned:
-        logger.debug("Your banned")
+        logger.debug("You're banned")
         if datetime.now() > banned[request.client.host] + timedelta(
             milliseconds=BANNED_TIME
         ):
@@ -121,10 +122,11 @@ def authenticate(
 
 @app.get("/")
 def read_current_user(password: str = Depends(authenticate)):
-    file_like = open("success.jpg", mode="rb")
+    file_like = open("../success.jpg", mode="rb")
     return StreamingResponse(file_like)
 
 
 if __name__ == "__main__":
-    logger.info("\t\t\t\tMy IP: %s", socket.gethostbyname(socket.gethostname()))	
+
+    logger.info("\t\t\t\tMy IP: %s", socket.gethostbyname(socket.gethostname()))
     uvicorn.run(app, host="0.0.0.0", port=8000)
