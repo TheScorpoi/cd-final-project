@@ -122,7 +122,7 @@ def authenticate(
 
 @app.get("/")
 def read_current_user(password: str = Depends(authenticate)):
-    file_like = open("../success.jpg", mode="rb")
+    file_like = open("success.jpg", mode="rb")
     return StreamingResponse(file_like)
 
 
