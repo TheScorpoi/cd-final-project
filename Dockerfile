@@ -4,4 +4,4 @@ WORKDIR /
 
 COPY slave.py slave.py 
 
-CMD [ "python3", "slave.py"]
+CMD [ "python3", "-u", "slave.py"]
