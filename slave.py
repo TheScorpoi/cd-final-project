@@ -44,7 +44,14 @@ class Slave:
 
 
     def combinations(self, length):
-        return [''.join(i) for i in itertools.product(ascii_letters + digits, repeat = length)]
+        listinha = []
+        for i in range(1, length + 1):
+            for comb in itertools.product(ascii_letters + digits , repeat = i):
+                tmp = ''
+                for i in range(len(comb)):
+                    tmp += comb[i]
+                listinha.append(tmp)
+        return listinha
     
     
     def rcv_from_slaves(self):
