@@ -33,3 +33,21 @@ $ docker rm <container id>
 # Tips for install in Ubuntu:
 
 $ sudo apt-get install libsasl2-dev python-dev libldap2-dev libssl-dev python3-openssl
+
+# To run with bash scripts
+
+To delete containers:
+
+$ ./delete.sh
+
+To run Server:
+
+$ ./executeServer.sh
+
+To run Slaves:
+
+$./executeSlave.sh
+
+To run Server and Slave with one bash script
+
+$ ./execute.sg
