@@ -33,17 +33,27 @@ class Slave:
 
         self.sock_sendMulticast.sendto(reg_msg, (self.MCAST_GRP, self.MCAST_PORT))
 
-
-    def send_msg(self, msg,conn):
-        conn.send(msg)
-
-    def encode64(self,password) -> str:
+    def encode(self,password) -> str:
         string_pass = ('root:' + password).encode('utf-8')
         pass_64 = base64.b64encode(string_pass).decode('utf-8')
         return pass_64
 
+    def send_msg(self, msg,conn):
+            conn.send(msg)
 
-    def combinations(self, length):
+    def recv_slave(self):
+            """create multicast sockets to receivedata"""
+            self.sock_recvMulti = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+            self.sock_recvMulti.settimeout(0)                
+            self.sock_recvMulti.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.sock_recvMulti.bind(('', self.MCAST_PORT))
+
+            mreq = struct.pack("4sl", socket.inet_aton(self.MCAST_GRP), socket.INADDR_ANY)
+
+            self.sock_recvMulti.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+        
+        
+    def cartesianeProd(self, length):
         listinha = []
         for i in range(1, length + 1):
             for comb in itertools.product(ascii_letters + digits , repeat = i):
@@ -53,25 +63,10 @@ class Slave:
                 listinha.append(tmp)
         return listinha
     
-    
-    def rcv_from_slaves(self):
-        """create multicast sockets to receivedata"""
-        self.sock_recvMulti = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-        self.sock_recvMulti.settimeout(0)                
-        self.sock_recvMulti.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.sock_recvMulti.bind(('', self.MCAST_PORT))
-
-        mreq = struct.pack("4sl", socket.inet_aton(self.MCAST_GRP), socket.INADDR_ANY)
-
-        self.sock_recvMulti.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
-    
-    
-
-
     def loop(self):
-        self.rcv_from_slaves()
+        self.recv_slave()
         time.sleep(5)
-        comb = self.combinations(const.PASSWORD_SIZE)
+        comb = self.cartesianeProd(const.PASSWORD_SIZE)
         i=0
         while True:
             """HTTP protocol and turn sockets on"""
@@ -81,20 +76,20 @@ class Slave:
                 if message['command'] == 'register':
                     self.n_slaves+=1
                     print("Number slaves:" ,self.n_slaves)
-                elif message['command'] == 'found':
+                elif message['command'] == 'match':
                     print(message)
                     break
             except socket.error:
                 pass
                     
             self.msg = "GET / HTTP/1.1\nHost: " + self.host + " : " + str(self.port) + "\n"
-            self.msg += "Authorization: Basic " + str(self.encode64(comb[i])) + "\n\n"
+            self.msg += "Authorization: Basic " + str(self.encode(comb[i])) + "\n\n"
             self.send_msg(self.msg.encode('utf-8'),self.sock)
                 
             received = self.sock.recv(1024).decode('utf-8')
 
             if "OK" in received:
-                msg_ok = {'command': 'found', 'password': comb[i]}
+                msg_ok = {'command': 'match', 'password': comb[i]}
                 msg_ok_encode = json.dumps(msg_ok).encode('utf-8')
                 self.sock_sendMulticast.sendto(msg_ok_encode, (self.MCAST_GRP, self.MCAST_PORT))
                 print(msg_ok)
@@ -111,7 +106,3 @@ if __name__ == "__main__":
     s = Slave()
     s.connect()
     s.loop()
-
-#while True:
-#    print("all your base are belong to us")
-#    time.sleep(1)
